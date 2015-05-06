@@ -70,6 +70,18 @@ public:
       flush_bits(n);
       return rval;
    }
+   
+   unsigned char *get_buffer() {
+      return mBuffer+mContextBytePos;
+   }
+
+   void skip_n_bytes(unsigned int n) {
+      mContextBytePos += n;
+   }
+
+   unsigned int get_bytes_left() {
+      return (mSizeInBytes - mContextBytePos);
+   }
 
 private:
    unsigned char *mBuffer;

@@ -1,19 +1,10 @@
-#include "klv.hpp"
 #include "mxf.hpp"
 
 int
 main(int argc, char *argv[]) {
-   klv_parser klvp("GoneGirl_32K.mxf");
- 
-   klv_item klvi;
-   
-   klvp.set_verbosity(true);
-   klvp.set_validity_test(true);
+   mxf_file file("GoneGirl_32K.mxf");
 
-   klvp.get_klv_item(klvi);
-   klvp.get_klv_item(klvi);
-   klvp.get_klv_item(klvi);
-   
+   file.build_klv_list();
 
    return 0;
 }
