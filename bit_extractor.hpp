@@ -1,6 +1,7 @@
 #ifndef BIT_EXTRACTOR_HPP___
 #define BIT_EXTRACTOR_HPP___
 
+#include <cstdint>
 #include <iostream>
 
 //#include <stdint.h>
@@ -31,8 +32,24 @@ public:
       mSizeInBytes = size_in_bytes;
    }
 
+   // NOTE ::: Only works for an alligned (8-bit) buffer 
+   uint64_t get_64bits() {
+      uint64_t rval = 0;
+
+      rval |= ((uint64_t)*mBuffer++);
+      rval |= ((uint64_t)*mBuffer++ << 8);
+      rval |= ((uint64_t)*mBuffer++ << 16);
+      rval |= ((uint64_t)*mBuffer++ << 24);
+      rval |= ((uint64_t)*mBuffer++ << 32);
+      rval |= ((uint64_t)*mBuffer++ << 40);
+      rval |= ((uint64_t)*mBuffer++ << 48);
+      rval |= ((uint64_t)*mBuffer++ << 56);
+
+      return rval;
+   }
+
    unsigned int show_bits(unsigned char n) {
-      unsigned rval = 0;
+      unsigned int rval = 0;
 
       unsigned char *p = mBuffer + mContextBytePos; 
       

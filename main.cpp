@@ -1,31 +1,54 @@
 #include <iostream>
 #include "mxf.hpp"
 
+#include "dictionary.hpp"
+
 int
 main(int argc, char *argv[]) {
 
-   // Test UL Key dictionary
+   #if 0
+   // Test Dictionary
    // ------------------------------------------------
-   key_value_dictionary mxf_kv_dic;
+   Dictionary<16> mxf_kv_dic;
    mxf_kv_dic.add( {0x0006, 0x000E, 0x002B, 0x0034, 
                     0x0001, 0x0001, 0x0001, 0x0002, 
                     0x0003, 0x0001, 0x0002, 0x0010, 
                     0x0010, 0x0000, 0x0000, 0x0000}, "Fill Item");
 
    mxf_kv_dic.add( {0x0006, 0x000E, 0x002B, 0x0034, 
-                    0x0001, 0x0001, 0x0001, 0x0002, 
-                    0x0005, 0x0001, 0x0002, 0x0010, 
-                    0x0010, 0x0001, 0x0000, 0x0000}, "Another Item");
+                    0x0001, 0x0001, 0xFFFF, 0x0002, 
+                    0x0005, 0x0001, 0x0003, 0x0010, 
+                    0x0010, 0x0001, 0x0000, 0x0000}, "Another Item 1");
 
+   mxf_kv_dic.add( {0x0006, 0x000E, 0x002B, 0x0034, 
+                    0x0001, 0x0001, 0xFFFF, 0x0002, 
+                    0x0005, 0x0001, 0x0004, 0x0010, 
+                    0x0010, 0x0001, 0x0000, 0x0000}, "Another Item 2");
+
+   mxf_kv_dic.add( {0x0006, 0x000E, 0x002B, 0x0034, 
+                    0xFFFF, 0x0001, 0x0006, 0x0002, 
+                    0x0005, 0x0001, 0x0004, 0x0010, 
+                    0x0010, 0x0001, 0x0000, 0x0000}, "Another Item 3");
+
+   mxf_kv_dic.add( {0x0006, 0x000E, 0x002B, 0x0034, 
+                    0xFFFF, 0x0002, 0xFFFF, 0xFFFF, 
+                    0x0005, 0x0001, 0x0004, 0x0010, 
+                    0x0010, 0x0001, 0x0000, 0x0000}, "Another Item 4");
+
+   std::cout << mxf_kv_dic.find({0x06, 0x0E, 0x2B, 0x34, 
+                                 0x08, 0x01, 0x06, 0x02, 
+                                 0x05, 0x01, 0x04, 0x10, 
+                                 0x10, 0x01, 0x00, 0x00}) << std::endl;
    
-
    // ------------------------------------------------
-
-   mxf_file file("GoneGirl_32K.mxf");
+   #endif
+   
+   #if 1
+   mxf_file file("freeMXF-mxf1.mxf");
 
    file.build_klv_list();
-
    file.output_klv_list(std::cout);
 
    return 0;
+   #endif
 }

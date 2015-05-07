@@ -10,7 +10,9 @@
 #include <map>
 
 #include "klv.hpp"
+#include "dictionary.hpp"
 #include "bit_extractor.hpp"
+#include "hex_out.hpp"
 
 class mxf_base {
 public:
@@ -60,6 +62,27 @@ public:
 // Overall Data Structure
 class mxf_header_partition_pack : public mxf_base {
 public:
+   mxf_header_partition_pack() : m_essence_containers(0) {}
+
+   ~mxf_header_partition_pack() {
+      if (m_essence_containers) {
+         delete [] m_essence_containers;
+      }
+   }
+
+   uint16_t m_major_version;
+   uint16_t m_minor_version;
+   uint32_t m_kag_size;
+   uint64_t m_this_partition;
+   uint64_t m_previous_partition;
+   uint64_t m_footer_partition;
+   uint64_t m_header_byte_count;
+   uint64_t m_index_byte_count;
+   uint32_t m_index_sid;
+   uint64_t m_body_offset;
+   uint32_t m_body_sid;
+   Key<16>  m_operational_pattern;
+   Key<16> *m_essence_containers;
 };
 
 class mxf_header_metadata : public mxf_base {
@@ -106,17 +129,18 @@ public:
 class mxf_file : public mxf_base {
 public:
    mxf_file() : m_file_name(""), m_p_data(0), m_state(0) {
-      if (!msIsUL2NameInit) {
-         init_ul_2_name();
-         msIsUL2NameInit = true;
+      if (!m_is_UL_key_dictionary_init) {
+         init_UL_key_dictionary();
+         m_is_UL_key_dictionary_init = true;
       }
    }
    
    mxf_file(std::string file_name) : m_file_name(file_name) {
-      if (!msIsUL2NameInit) {
-         init_ul_2_name();
-         msIsUL2NameInit = true;
+      if (!m_is_UL_key_dictionary_init) {
+         init_UL_key_dictionary();
+         m_is_UL_key_dictionary_init = true;
       }
+
       std::ifstream in(m_file_name, std::ifstream::ate | std::ifstream::binary);
       if (in.fail()) {
          m_state = -1;
@@ -162,25 +186,86 @@ public:
          do {
             auto p_klvi = std::shared_ptr<klv_item>(new klv_item);
             klv_ret_val = klvp.get_klv_item(*p_klvi, be);
-
+            
             if (klv_ret_val) {
                m_klv_list.push_back(p_klvi);
             }
-            std::cout << "  Bytes left: " << be.get_bytes_left() << std::endl; 
+            //std::cout << "  Bytes left: " << be.get_bytes_left() << std::endl; 
          } while (true == klv_ret_val);
       }
       return rval;
    }
-
+   
    void output_klv_list(std::ostream &os) {
       for (const auto &e: m_klv_list) {
          e->output(std::cout, "");
+         std::string name =  m_UL_key_dictionary.find(e->mKey);
+         std::cout << "  NAME : " << name << std::endl << std::endl;
+         if (name != "NULL") {
+            std::cout << "PAYLOAD = " << std::endl;
+            hex_bulk_output(std::cout, 32, e->mValue, e->mLength);
+            std::cout << std::endl;
+         }
       }
    }
-
+   
    mxf_file_header m_header;
    mxf_file_body   m_body;
    mxf_file_footer m_footer;
+   
+   int decode_partition_pack(klv_item &klv) {
+      int rval = 0;
+      switch (klv.mKey[13]) {
+      case 0x02:
+         decode_header_partition_pack(klv);
+         break;
+      case 0x03:
+         decode_body_partition_pack(klv);
+         break;
+      case 0x04:
+         decode_footer_partition_pack(klv);
+         break;
+      }
+      return rval;
+   }
+   
+   int decode_header_partition_pack(klv_item &klv) {
+      int rval = 0;
+      
+      bit_extractor be(klv.mValue, klv.mLength);
+      
+      m_header.m_hpp.m_major_version      = be.get_bits(16);
+      m_header.m_hpp.m_minor_version      = be.get_bits(16);
+      m_header.m_hpp.m_kag_size           = be.get_bits(32);
+      m_header.m_hpp.m_this_partition     = be.get_64bits();
+      m_header.m_hpp.m_previous_partition = be.get_64bits();
+      m_header.m_hpp.m_footer_partition   = be.get_64bits();
+      m_header.m_hpp.m_header_byte_count  = be.get_64bits();
+      m_header.m_hpp.m_index_byte_count   = be.get_64bits();
+      m_header.m_hpp.m_index_sid          = be.get_64bits();
+      m_header.m_hpp.m_body_offset        = be.get_64bits();
+      m_header.m_hpp.m_body_sid           = be.get_bits(32);
+      
+      for (int i=0;i<16;++i) {
+         m_header.m_hpp.m_operational_pattern.mKey[i] = be.get_bits(8);
+      }
+      
+      
+
+      return rval;
+   }
+
+   int decode_body_partition_pack(klv_item &klv) {
+      bit_extractor be(klv.mValue, klv.mLength);
+      
+
+   }
+
+   int decode_footer_partition_pack(klv_item &klv) {
+      bit_extractor be(klv.mValue, klv.mLength);
+      
+
+   }
 
    int decode_file_header();
    int decode_file_body();
@@ -195,9 +280,10 @@ public:
 private:
    std::list<std::shared_ptr<klv_item>> m_klv_list;
    
-   static std::map<UL, std::string> msUL2Name;
-   static bool                      msIsUL2NameInit;
-   static void init_ul_2_name();
+   static Dictionary<16>  m_UL_key_dictionary;
+   static bool            m_is_UL_key_dictionary_init;
+
+   static void init_UL_key_dictionary(); 
 };
 
 

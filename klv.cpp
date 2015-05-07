@@ -1,21 +1,5 @@
 #include "klv.hpp"
 
-// Needed to be able to use UL as a Key in std::map
-// ------------------------------------------------------------------------------
-bool operator<(const UL &x1, const UL &x2) {
-   bool rval = false;
-   
-   int i=0;
-   for (int i=0;i<16;i++) {
-      if (x1[i] != x2[i]) {
-         rval = (x1[i] < x2[i]);
-         break;
-      }
-   }
-   
-   return rval;
-}
-
 // KLV Item Abstraction
 // ------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------
@@ -122,6 +106,7 @@ void klv_item::output(std::ostream &os, std::string indent) {
       
    os << indent << " Item Designator              = "
       << "0x" 
+      << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)mKey[8]
       << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)mKey[9]
       << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)mKey[10]
       << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)mKey[11]
