@@ -7,10 +7,10 @@
 #include <string>
 #include <list>
 #include <memory>
+#include <map>
 
 #include "klv.hpp"
 #include "bit_extractor.hpp"
-
 
 class mxf_base {
 public:
@@ -105,10 +105,18 @@ public:
 
 class mxf_file : public mxf_base {
 public:
-   mxf_file() : m_file_name(""), m_p_data(0), m_state(0) {}
+   mxf_file() : m_file_name(""), m_p_data(0), m_state(0) {
+      if (!msIsUL2NameInit) {
+         init_ul_2_name();
+         msIsUL2NameInit = true;
+      }
+   }
    
    mxf_file(std::string file_name) : m_file_name(file_name) {
-
+      if (!msIsUL2NameInit) {
+         init_ul_2_name();
+         msIsUL2NameInit = true;
+      }
       std::ifstream in(m_file_name, std::ifstream::ate | std::ifstream::binary);
       if (in.fail()) {
          m_state = -1;
@@ -152,8 +160,9 @@ public:
 
          bool klv_ret_val;
          do {
-            std::shared_ptr<klv_item> p_klvi = std::shared_ptr<klv_item>(new klv_item);
+            auto p_klvi = std::shared_ptr<klv_item>(new klv_item);
             klv_ret_val = klvp.get_klv_item(*p_klvi, be);
+
             if (klv_ret_val) {
                m_klv_list.push_back(p_klvi);
             }
@@ -161,6 +170,12 @@ public:
          } while (true == klv_ret_val);
       }
       return rval;
+   }
+
+   void output_klv_list(std::ostream &os) {
+      for (const auto &e: m_klv_list) {
+         e->output(std::cout, "");
+      }
    }
 
    mxf_file_header m_header;
@@ -179,6 +194,10 @@ public:
  
 private:
    std::list<std::shared_ptr<klv_item>> m_klv_list;
+   
+   static std::map<UL, std::string> msUL2Name;
+   static bool                      msIsUL2NameInit;
+   static void init_ul_2_name();
 };
 
 
