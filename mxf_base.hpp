@@ -175,7 +175,7 @@ public:
       bool rval = true;
       if (m_p_data) {
          // Initialize Bit Extractor
-         bit_extractor be(m_p_data, m_file_size);
+         bit_extractor be(m_p_data, m_file_size, BE_BIG_ENDIAN);
          // Need a KLV parser instance
          klv_parser klvp;
 
@@ -196,6 +196,19 @@ public:
       return rval;
    }
    
+   void parse() {
+      for (const auto &e: m_klv_list) {
+         std::string name =  m_UL_key_dictionary.find(e->mKey);
+         if (name == m_partition_pack_name) {
+            e->output(std::cout, "");
+            decode_partition_pack(*e);
+            std::cout << " NAME : " << name << std::endl << std::endl;
+            std::cout << " PAYLOAD = " << std::endl;
+            hex_bulk_output(std::cout, 32, e->mValue, e->mLength);
+            std::cout << std::endl;         }
+      }
+   }
+
    void output_klv_list(std::ostream &os) {
       for (const auto &e: m_klv_list) {
          e->output(std::cout, "");
@@ -232,7 +245,7 @@ public:
    int decode_header_partition_pack(klv_item &klv) {
       int rval = 0;
       
-      bit_extractor be(klv.mValue, klv.mLength);
+      bit_extractor be(klv.mValue, klv.mLength, BE_BIG_ENDIAN);
       
       m_header.m_hpp.m_major_version      = be.get_bits(16);
       m_header.m_hpp.m_minor_version      = be.get_bits(16);
@@ -242,29 +255,52 @@ public:
       m_header.m_hpp.m_footer_partition   = be.get_64bits();
       m_header.m_hpp.m_header_byte_count  = be.get_64bits();
       m_header.m_hpp.m_index_byte_count   = be.get_64bits();
-      m_header.m_hpp.m_index_sid          = be.get_64bits();
+      m_header.m_hpp.m_index_sid          = be.get_bits(32);
       m_header.m_hpp.m_body_offset        = be.get_64bits();
       m_header.m_hpp.m_body_sid           = be.get_bits(32);
+
+#if 1
+      
+      std::cout << "  Major Version        = " << hex_to_string(m_header.m_hpp.m_major_version)
+                << std::endl;
+      std::cout << "  Minor Version        = " << hex_to_string(m_header.m_hpp.m_minor_version)
+                << std::endl;
+      std::cout << "  KAG Size             = " << hex_to_string(m_header.m_hpp.m_kag_size)
+                << std::endl;
+      std::cout << "  This Partition #     = " << hex_to_string(m_header.m_hpp.m_this_partition)
+                << std::endl;
+      std::cout << "  Previous Partition # = " << hex_to_string(m_header.m_hpp.m_previous_partition)
+                << std::endl;
+      std::cout << "  Footer Partition #   = " << hex_to_string(m_header.m_hpp.m_footer_partition)
+                << std::endl;
+      std::cout << "  Header Byte Count    = " << hex_to_string(m_header.m_hpp.m_header_byte_count)
+                << std::endl;
+      std::cout << "  Index Byte Count     = " << hex_to_string(m_header.m_hpp.m_index_byte_count)
+                << std::endl;
+      std::cout << "  Index SID            = " << hex_to_string(m_header.m_hpp.m_index_sid)
+                << std::endl;
+      std::cout << "  Body Offset          = " << hex_to_string(m_header.m_hpp.m_body_offset)
+                << std::endl;
+      std::cout << "  Body SID             = " << hex_to_string(m_header.m_hpp.m_body_sid)
+                << std::endl;
+      
+#endif
       
       for (int i=0;i<16;++i) {
          m_header.m_hpp.m_operational_pattern.mKey[i] = be.get_bits(8);
       }
-      
-      
 
       return rval;
    }
 
    int decode_body_partition_pack(klv_item &klv) {
-      bit_extractor be(klv.mValue, klv.mLength);
+      bit_extractor be(klv.mValue, klv.mLength, BE_BIG_ENDIAN);
       
-
    }
 
    int decode_footer_partition_pack(klv_item &klv) {
-      bit_extractor be(klv.mValue, klv.mLength);
+      bit_extractor be(klv.mValue, klv.mLength, BE_BIG_ENDIAN);
       
-
    }
 
    int decode_file_header();
@@ -283,7 +319,10 @@ private:
    static Dictionary<16>  m_UL_key_dictionary;
    static bool            m_is_UL_key_dictionary_init;
 
-   static void init_UL_key_dictionary(); 
+   static void init_UL_key_dictionary();
+
+   static std::string     m_partition_pack_name;
+   static std::string     m_fill_item_name;
 };
 
 

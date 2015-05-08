@@ -6,6 +6,11 @@
 int
 main(int argc, char *argv[]) {
 
+   for (int i=1;i<33;i++) {
+      int mask = (1 << (i & 0x1F)) - 1;        
+      std::cout << "0x" << std::hex << mask << ",";   
+   } 
+
    #if 0
    // Test Dictionary
    // ------------------------------------------------
@@ -44,10 +49,13 @@ main(int argc, char *argv[]) {
    #endif
    
    #if 1
-   mxf_file file("freeMXF-mxf1.mxf");
+   //mxf_file file("freeMXF-mxf1.mxf");
+   mxf_file file("GoneGirl_32K.mxf");
 
    file.build_klv_list();
-   file.output_klv_list(std::cout);
+   file.parse();
+
+   //file.output_klv_list(std::cout);
 
    return 0;
    #endif

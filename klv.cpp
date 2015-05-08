@@ -34,7 +34,7 @@ bool klv_item::parse_value() {
          mKLVList = new std::list<std::shared_ptr<klv_item>>;
          
          // Initialize Bit Extractor
-         bit_extractor be(mValue, mLength);
+         bit_extractor be(mValue, mLength, BE_BIG_ENDIAN);
          // Need a KLV parser instance
          klv_parser klvp;
          
@@ -76,7 +76,6 @@ bool klv_item::parse_value() {
 void klv_item::output(std::ostream &os, std::string indent) {
    os << indent << " KEY" << std::endl;
    os << indent << " -------------------------------------------" << std::endl;
-   os << indent << std::hex << std::setfill('0') << std::setw(2);
    os << indent << " IOD     = " << "0x" << std::hex << std::setfill('0') << std::setw(2) 
       << (uint32_t)mKey[0] << std::endl;
    os << indent << " UL Size = " << "0x" << std::hex << std::setfill('0') << std::setw(2) 
