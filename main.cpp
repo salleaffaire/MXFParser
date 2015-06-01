@@ -6,10 +6,12 @@
 int
 main(int argc, char *argv[]) {
 
+   #if 0
    for (int i=1;i<33;i++) {
       int mask = (1 << (i & 0x1F)) - 1;        
       std::cout << "0x" << std::hex << mask << ",";   
    } 
+   #endif
 
    #if 0
    // Test Dictionary

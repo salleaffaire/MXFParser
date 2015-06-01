@@ -22,19 +22,19 @@ public:
 // Simple Data Types
 // ----------------------------------------
 
-class mfx_auid {
+class mxf_auid {
 public:
-   uint8_t m_uid[16];
    bool    m_is_ul;
+   Key<16> m_id;
 };
 
 class mxf_idau {
 public:
-   uint8_t m_uid[16];
    bool    m_is_ul;
+   Key<16> m_id;
 };
 
-class mfx_ber_length {
+class mxf_ber_length {
 public:
    uint8_t m_l[32];
 };
@@ -102,6 +102,27 @@ public:
 
 class mxf_body_partition_pack : public mxf_base {
 public:
+   mxf_body_partition_pack() : m_essence_containers(0) {}
+
+   ~mxf_body_partition_pack() {
+      if (m_essence_containers) {
+         delete [] m_essence_containers;
+      }
+   }
+
+   uint16_t m_major_version;
+   uint16_t m_minor_version;
+   uint32_t m_kag_size;
+   uint64_t m_this_partition;
+   uint64_t m_previous_partition;
+   uint64_t m_footer_partition;
+   uint64_t m_header_byte_count;
+   uint64_t m_index_byte_count;
+   uint32_t m_index_sid;
+   uint64_t m_body_offset;
+   uint32_t m_body_sid;
+   Key<16>  m_operational_pattern;
+   Key<16> *m_essence_containers;
 };
 
 class mxf_file_body : public mxf_base {
@@ -113,6 +134,27 @@ public:
 
 class mxf_footer_partition_pack : public mxf_base {
 public:
+   mxf_footer_partition_pack() : m_essence_containers(0) {}
+
+   ~mxf_footer_partition_pack() {
+      if (m_essence_containers) {
+         delete [] m_essence_containers;
+      }
+   }
+
+   uint16_t m_major_version;
+   uint16_t m_minor_version;
+   uint32_t m_kag_size;
+   uint64_t m_this_partition;
+   uint64_t m_previous_partition;
+   uint64_t m_footer_partition;
+   uint64_t m_header_byte_count;
+   uint64_t m_index_byte_count;
+   uint32_t m_index_sid;
+   uint64_t m_body_offset;
+   uint32_t m_body_sid;
+   Key<16>  m_operational_pattern;
+   Key<16> *m_essence_containers;
 };
 
 class mxf_footer_metadata : public mxf_base {
@@ -200,12 +242,18 @@ public:
       for (const auto &e: m_klv_list) {
          std::string name =  m_UL_key_dictionary.find(e->mKey);
          if (name == m_partition_pack_name) {
-            e->output(std::cout, "");
-            decode_partition_pack(*e);
-            std::cout << " NAME : " << name << std::endl << std::endl;
-            std::cout << " PAYLOAD = " << std::endl;
-            hex_bulk_output(std::cout, 32, e->mValue, e->mLength);
-            std::cout << std::endl;         }
+            decode_partition_pack(*e);        
+         }
+         else if ((name == m_fill_item_name) || 
+                  (name == m_operational_pattern_name) || 
+                  (name == m_primer_pack_name)) {
+         
+         }
+         e->output(std::cout, "");
+         std::cout << " NAME : " << name << std::endl << std::endl;
+         std::cout << " PAYLOAD = " << std::endl;
+         hex_bulk_output(std::cout, 32, e->mValue, e->mLength);
+         std::cout << std::endl; 
       }
    }
 
@@ -222,6 +270,8 @@ public:
       }
    }
    
+   // Core structures
+   // ------------------------------------------------------------
    mxf_file_header m_header;
    mxf_file_body   m_body;
    mxf_file_footer m_footer;
@@ -258,7 +308,25 @@ public:
       m_header.m_hpp.m_index_sid          = be.get_bits(32);
       m_header.m_hpp.m_body_offset        = be.get_64bits();
       m_header.m_hpp.m_body_sid           = be.get_bits(32);
+      
+      // UL of operational Pattern
+      for (int i=0;i<16;++i) {
+         m_header.m_hpp.m_operational_pattern.mKey[i] = be.get_bits(8);
+      }
 
+      // UL Batch - Skip the 8 bytes 
+      be.get_64bits();
+      
+      uint32_t nunmber_of_ul = be.get_bytes_left();
+      m_header.m_hpp.m_essence_containers = new Key<16>[nunmber_of_ul];
+
+      for (int j=0;j<nunmber_of_ul;j++) {
+         for (int i=0;i<16;++i) {
+            m_header.m_hpp.m_essence_containers[j].mKey[i] = be.get_bits(8);
+         }  
+      }
+
+      
 #if 1
       
       std::cout << "  Major Version        = " << hex_to_string(m_header.m_hpp.m_major_version)
@@ -285,22 +353,139 @@ public:
                 << std::endl;
       
 #endif
-      
-      for (int i=0;i<16;++i) {
-         m_header.m_hpp.m_operational_pattern.mKey[i] = be.get_bits(8);
-      }
 
       return rval;
    }
 
    int decode_body_partition_pack(klv_item &klv) {
+      int rval = 0;
+      
       bit_extractor be(klv.mValue, klv.mLength, BE_BIG_ENDIAN);
+      
+      m_body.m_bpp.m_major_version      = be.get_bits(16);
+      m_body.m_bpp.m_minor_version      = be.get_bits(16);
+      m_body.m_bpp.m_kag_size           = be.get_bits(32);
+      m_body.m_bpp.m_this_partition     = be.get_64bits();
+      m_body.m_bpp.m_previous_partition = be.get_64bits();
+      m_body.m_bpp.m_footer_partition   = be.get_64bits();
+      m_body.m_bpp.m_header_byte_count  = be.get_64bits();
+      m_body.m_bpp.m_index_byte_count   = be.get_64bits();
+      m_body.m_bpp.m_index_sid          = be.get_bits(32);
+      m_body.m_bpp.m_body_offset        = be.get_64bits();
+      m_body.m_bpp.m_body_sid           = be.get_bits(32);
+      
+      // UL of operational Pattern
+      for (int i=0;i<16;++i) {
+         m_body.m_bpp.m_operational_pattern.mKey[i] = be.get_bits(8);
+      }
+
+      // UL Batch - Skip the 8 bytes 
+      be.get_64bits();
+      
+      uint32_t nunmber_of_ul = be.get_bytes_left();
+      m_body.m_bpp.m_essence_containers = new Key<16>[nunmber_of_ul];
+
+      for (int j=0;j<nunmber_of_ul;j++) {
+         for (int i=0;i<16;++i) {
+            m_body.m_bpp.m_essence_containers[j].mKey[i] = be.get_bits(8);
+         }  
+      }
+
+      
+#if 1
+      
+      std::cout << "  Major Version        = " << hex_to_string(m_header.m_hpp.m_major_version)
+                << std::endl;
+      std::cout << "  Minor Version        = " << hex_to_string(m_header.m_hpp.m_minor_version)
+                << std::endl;
+      std::cout << "  KAG Size             = " << hex_to_string(m_header.m_hpp.m_kag_size)
+                << std::endl;
+      std::cout << "  This Partition #     = " << hex_to_string(m_header.m_hpp.m_this_partition)
+                << std::endl;
+      std::cout << "  Previous Partition # = " << hex_to_string(m_header.m_hpp.m_previous_partition)
+                << std::endl;
+      std::cout << "  Footer Partition #   = " << hex_to_string(m_header.m_hpp.m_footer_partition)
+                << std::endl;
+      std::cout << "  Header Byte Count    = " << hex_to_string(m_header.m_hpp.m_header_byte_count)
+                << std::endl;
+      std::cout << "  Index Byte Count     = " << hex_to_string(m_header.m_hpp.m_index_byte_count)
+                << std::endl;
+      std::cout << "  Index SID            = " << hex_to_string(m_header.m_hpp.m_index_sid)
+                << std::endl;
+      std::cout << "  Body Offset          = " << hex_to_string(m_header.m_hpp.m_body_offset)
+                << std::endl;
+      std::cout << "  Body SID             = " << hex_to_string(m_header.m_hpp.m_body_sid)
+                << std::endl;
+      
+#endif
+
+      return rval;
       
    }
 
    int decode_footer_partition_pack(klv_item &klv) {
+      int rval = 0;
+      
       bit_extractor be(klv.mValue, klv.mLength, BE_BIG_ENDIAN);
       
+      m_footer.m_fpp.m_major_version      = be.get_bits(16);
+      m_footer.m_fpp.m_minor_version      = be.get_bits(16);
+      m_footer.m_fpp.m_kag_size           = be.get_bits(32);
+      m_footer.m_fpp.m_this_partition     = be.get_64bits();
+      m_footer.m_fpp.m_previous_partition = be.get_64bits();
+      m_footer.m_fpp.m_footer_partition   = be.get_64bits();
+      m_footer.m_fpp.m_header_byte_count  = be.get_64bits();
+      m_footer.m_fpp.m_index_byte_count   = be.get_64bits();
+      m_footer.m_fpp.m_index_sid          = be.get_bits(32);
+      m_footer.m_fpp.m_body_offset        = be.get_64bits();
+      m_footer.m_fpp.m_body_sid           = be.get_bits(32);
+      
+      // UL of operational Pattern
+      for (int i=0;i<16;++i) {
+         m_footer.m_fpp.m_operational_pattern.mKey[i] = be.get_bits(8);
+      }
+
+      // UL Batch - Skip the 8 bytes 
+      be.get_64bits();
+      
+      uint32_t nunmber_of_ul = be.get_bytes_left();
+      m_footer.m_fpp.m_essence_containers = new Key<16>[nunmber_of_ul];
+
+      for (int j=0;j<nunmber_of_ul;j++) {
+         for (int i=0;i<16;++i) {
+            m_footer.m_fpp.m_essence_containers[j].mKey[i] = be.get_bits(8);
+         }  
+      }
+
+      
+#if 1
+      
+      std::cout << "  Major Version        = " << hex_to_string(m_header.m_hpp.m_major_version)
+                << std::endl;
+      std::cout << "  Minor Version        = " << hex_to_string(m_header.m_hpp.m_minor_version)
+                << std::endl;
+      std::cout << "  KAG Size             = " << hex_to_string(m_header.m_hpp.m_kag_size)
+                << std::endl;
+      std::cout << "  This Partition #     = " << hex_to_string(m_header.m_hpp.m_this_partition)
+                << std::endl;
+      std::cout << "  Previous Partition # = " << hex_to_string(m_header.m_hpp.m_previous_partition)
+                << std::endl;
+      std::cout << "  Footer Partition #   = " << hex_to_string(m_header.m_hpp.m_footer_partition)
+                << std::endl;
+      std::cout << "  Header Byte Count    = " << hex_to_string(m_header.m_hpp.m_header_byte_count)
+                << std::endl;
+      std::cout << "  Index Byte Count     = " << hex_to_string(m_header.m_hpp.m_index_byte_count)
+                << std::endl;
+      std::cout << "  Index SID            = " << hex_to_string(m_header.m_hpp.m_index_sid)
+                << std::endl;
+      std::cout << "  Body Offset          = " << hex_to_string(m_header.m_hpp.m_body_offset)
+                << std::endl;
+      std::cout << "  Body SID             = " << hex_to_string(m_header.m_hpp.m_body_sid)
+                << std::endl;
+      
+#endif
+
+      return rval;
    }
 
    int decode_file_header();
@@ -314,6 +499,20 @@ public:
    int32_t       m_state;
  
 private:
+
+   void read(bit_extractor &be, mxf_auid &auid, bool is_ul) {
+      if (is_ul) {
+         
+      }
+      else {
+
+      }
+   }
+
+   void read(bit_extractor &be, mxf_idau &idau, bool is_ul) {
+      
+   }
+
    std::list<std::shared_ptr<klv_item>> m_klv_list;
    
    static Dictionary<16>  m_UL_key_dictionary;
@@ -323,6 +522,8 @@ private:
 
    static std::string     m_partition_pack_name;
    static std::string     m_fill_item_name;
+   static std::string     m_operational_pattern_name;
+   static std::string     m_primer_pack_name;
 };
 
 
